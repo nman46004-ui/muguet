@@ -9,24 +9,24 @@ name = "muguet-android"
 path = "src/android_entry.rs"
 
 [dependencies]
-wasmtime = { version = "49", default-features = false, features = ["runtime", "threads", "profiling", "anyhow"] }
+wasmtime = { version = "*", default-features = false, features = ["runtime", "threads", "profiling", "anyhow"] }
 anyhow = "1"
-serde_json = "1.0.151"
-wgpu = "30.0.1"
-pollster = "1.0.1"
-regex = "1.13.1"
+serde_json = "1"
+wgpu = "*"
+pollster = "1"
+regex = "1"
 android-activity = "0.6"
 raw-window-handle = "0.6"
-ndk = "0.10"
-ndk-glue = "0.10"
-ndk-sys = "0.10"
+ndk = "0.9"
+ndk-glue = "0.7"
+ndk-sys = "0.6"
 log = "0.4"
 android_logger = "0.15"
 zip = { version = "2", default-features = false, features = ["deflate"] }
-wasmparser = { version = "0.258.3", optional = true }
-wasm-encoder = { version = "0.258.3", optional = true, features = ["wasmparser"] }
+wasmparser = { version = "*", optional = true }
+wasm-encoder = { version = "*", optional = true, features = ["wasmparser"] }
 jni = "0.21"
-cpal = { version = "0.18", features = ["oboe"] }
+cpal = { version = "0.15", features = ["oboe"] }
 
 [features]
 default = ["jit"]
@@ -40,6 +40,3 @@ strip = true
 
 [patch.crates-io]
 wgpu-core = { path = "vendor/wgpu-core" }
-
-[target.aarch64-linux-android]
-linker = "aarch64-linux-android35-clang"
