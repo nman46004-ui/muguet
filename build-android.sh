@@ -5,7 +5,7 @@
 set -euo pipefail
 
 GAME_WASM="${1:-}"
-if [[ -z "$GAME_WASM" || ! -f "$GAME_WASM" ]]; then
+if [[ -z "$GAME_WASM" \vert{}\vert{} ! -f "$GAME_WASM" ]]; then
     echo "Usage: $0 /path/to/game.wasm"
     exit 1
 fi
@@ -36,12 +36,19 @@ export ANDROID_NDK_HOME
 # Add Rust target
 rustup target add "$TARGET" || true
 
-# Configure Cargo
+# Set environment variables for C/C++ compilation (needed for oboe-sys)
+TOOLCHAIN_BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+export CC_aarch64_linux_android="$TOOLCHAIN_BIN/${TARGET}${API_LEVEL}-clang"
+export CXX_aarch64_linux_android="$TOOLCHAIN_BIN/${TARGET}${API_LEVEL}-clang++"
+export AR_aarch64_linux_android="$TOOLCHAIN_BIN/llvm-ar"
+export PATH="$TOOLCHAIN_BIN:$PATH"
+
+# Configure Cargo linker
 mkdir -p .cargo
 cat > .cargo/config.toml <<EOF
 [target.$TARGET]
-linker = "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/${TARGET}${API_LEVEL}-clang"
-ar = "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+linker = "$CC_aarch64_linux_android"
+ar = "$AR_aarch64_linux_android"
 EOF
 
 # Create build directory
@@ -69,7 +76,7 @@ else
     echo "  WARNING: shader build directory not found. You'll need to copy manually."
 fi
 
-# AOT compile game.wasm for Android (NEW WASMTIME FLAGS)
+# AOT compile game.wasm for Android
 echo "AOT-compiling game.wasm for Android..."
 wasmtime compile \
     --target "$TARGET" \
@@ -79,57 +86,7 @@ wasmtime compile \
 
 # Build the Android binary (Rust)
 echo "Building muguet-android (Rust)..."
-# Cargo expects exactly "Cargo.toml", so we copy our android config to that name
-cp Cargo.android.toml Cargo.toml
-
 cargo build --release \
     --target "$TARGET" \
     --manifest-path Cargo.toml \
     --features jit
-
-# Copy binary
-cp "target/$TARGET/release/muguet-android" "$OUTPUT_BIN"
-chmod +x "$OUTPUT_BIN"
-
-# Build APK via Gradle
-if [[ -d "$ANDROID_PROJECT_DIR" ]]; then
-    echo "Building APK via Gradle..."
-    cd "$ANDROID_PROJECT_DIR"
-    
-    # Copy native library and assets to Android project
-    mkdir -p app/src/main/jniLibs/arm64-v8a
-    cp "../$OUTPUT_BIN" app/src/main/jniLibs/arm64-v8a/libmuguet-android.so
-    
-    mkdir -p app/src/main/assets
-    cp "../$GAME_CWASM" app/src/main/assets/game.cwasm
-    cp -r "../$GAME_DIR" app/src/main/assets/
-    
-    # Make gradlew executable
-    chmod +x gradlew
-    
-    # Build APK
-    ./gradlew assembleRelease
-    
-    APK_PATH="app/build/outputs/apk/release/app-release.apk"
-    if [[ -f "$APK_PATH" ]]; then
-        cp "$APK_PATH" "../$BUILD_DIR/Muguet.apk"
-        echo "APK built: $BUILD_DIR/Muguet.apk"
-    else
-        echo "WARNING: APK not found at expected location"
-    fi
-    
-    cd ..
-else
-    echo "Android project not found at $ANDROID_PROJECT_DIR, skipping APK build"
-fi
-
-# Package for device (adb shell method)
-echo "Creating device package..."
-DEVICE_DIR="$BUILD_DIR/device"
-rm -rf "$DEVICE_DIR"
-mkdir -p "$DEVICE_DIR/data/local/tmp"
-cp "$OUTPUT_BIN" "$DEVICE_DIR/data/local/tmp/"
-cp "$GAME_CWASM" "$DEVICE_DIR/data/local/tmp/"
-cp -r "$GAME_DIR" "$DEVICE_DIR/data/local/tmp/"
-
-echo "Build complete!"
