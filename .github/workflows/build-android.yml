@@ -92,6 +92,12 @@ jobs:
             exit 1
           fi
 
+      # ഇതാണ് നമ്മൾ പുതുതായി ചേർത്ത സ്റ്റെപ്പ് (Wasmtime ഇൻസ്റ്റാൾ ചെയ്യാനുള്ളത്)
+      - name: Install Wasmtime
+        run: |
+          curl https://wasmtime.dev/install.sh -sSf | bash
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+
       - name: Build Android (Rust + APK)
         env:
           GAME_WASM: ${{ env.GAME_WASM }}
