@@ -26,7 +26,7 @@ zip = { version = "2", default-features = false, features = ["deflate"] }
 wasmparser = { version = "*", optional = true }
 wasm-encoder = { version = "*", optional = true, features = ["wasmparser"] }
 jni = "0.21"
-cpal = { version = "0.15", features = ["oboe"] }
+cpal = "0.15"
 
 [features]
 default = ["jit"]
