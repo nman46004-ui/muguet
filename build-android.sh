@@ -65,9 +65,10 @@ else
     echo "  WARNING: mirror/playgta5.com/data not found. You'll need to copy manually."
 fi
 
-# Find the build directory with shaders
-BUILD_SOURCE=$(find mirror/playgta5.com -name "index.json" -path "*/shaders/*" 2>/dev/null | head -1 | xargs dirname | xargs dirname)
-if [[ -n "$BUILD_SOURCE" && -d "$BUILD_SOURCE" ]]; then
+# Find the build directory with shaders (FIXED to prevent dirname crash)
+BUILD_JSON=$(find mirror/playgta5.com -name "index.json" -path "*/shaders/*" 2>/dev/null | head -1 || true)
+if [[ -n "$BUILD_JSON" ]]; then
+    BUILD_SOURCE=$(dirname "$(dirname "$BUILD_JSON")")
     mkdir -p "$GAME_DIR/b"
     cp -r "$BUILD_SOURCE" "$GAME_DIR/b/"
     echo "  Copied build/ from $BUILD_SOURCE"
