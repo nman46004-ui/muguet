@@ -1,11 +1,10 @@
 #!/bin/bash
 # build-android.sh - Build Muguet for Android (aarch64)
-# Run from muguet repo root: ./build-android.sh /path/to/game.wasm
 
 set -euo pipefail
 
 GAME_WASM="${1:-}"
-if [[ -z "$GAME_WASM" \vert{}\vert{} ! -f "$GAME_WASM" ]]; then
+if [ -z "$GAME_WASM" ] \vert{}\vert{} [ ! -f "$GAME_WASM" ]; then
     echo "Usage: $0 /path/to/game.wasm"
     exit 1
 fi
@@ -27,7 +26,7 @@ command -v java >/dev/null || { echo "java not found (need JDK 17+)"; exit 1; }
 
 # Setup NDK
 ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$HOME/Android/Sdk/ndk/$NDK_VERSION}"
-if [[ ! -d "$ANDROID_NDK_HOME" ]]; then
+if [ ! -d "$ANDROID_NDK_HOME" ]; then
     echo "NDK not found at $ANDROID_NDK_HOME"
     exit 1
 fi
@@ -58,7 +57,7 @@ mkdir -p "$BUILD_DIR"
 GAME_DIR="$BUILD_DIR/game"
 mkdir -p "$GAME_DIR"
 echo "Copying game assets..."
-if [[ -d "mirror/playgta5.com/data" ]]; then
+if [ -d "mirror/playgta5.com/data" ]; then
     cp -r mirror/playgta5.com/data "$GAME_DIR/"
     echo "  Copied data/ from mirror"
 else
@@ -67,7 +66,7 @@ fi
 
 # Find the build directory with shaders
 BUILD_JSON=$(find mirror/playgta5.com -name "index.json" -path "*/shaders/*" 2>/dev/null | head -1 || true)
-if [[ -n "$BUILD_JSON" ]]; then
+if [ -n "$BUILD_JSON" ]; then
     BUILD_SOURCE=$(dirname "$(dirname "$BUILD_JSON")")
     mkdir -p "$GAME_DIR/b"
     cp -r "$BUILD_SOURCE" "$GAME_DIR/b/"
@@ -90,3 +89,43 @@ cargo build --release \
     --target "$TARGET" \
     --manifest-path Cargo.toml \
     --features jit
+
+# Copy binary
+if [ -f "target/$TARGET/release/muguet" ]; then
+    cp "target/$TARGET/release/muguet" "$OUTPUT_BIN"
+else
+    cp "target/$TARGET/release/muguet-android" "$OUTPUT_BIN"
+fi
+chmod +x "$OUTPUT_BIN"
+
+# Build APK via Gradle
+if [ -d "$ANDROID_PROJECT_DIR" ]; then
+    echo "Building APK via Gradle..."
+    cd "$ANDROID_PROJECT_DIR"
+    
+    # Copy native library and assets to Android project
+    mkdir -p app/src/main/jniLibs/arm64-v8a
+    cp "../$OUTPUT_BIN" app/src/main/jniLibs/arm64-v8a/libmuguet-android.so
+    
+    mkdir -p app/src/main/assets
+    cp "../$GAME_CWASM" app/src/main/assets/game.cwasm
+    cp -r "../$GAME_DIR" app/src/main/assets/
+    
+    # Make gradlew executable
+    chmod +x gradlew
+    
+    # Build APK
+    ./gradlew assembleRelease
+    
+    APK_PATH="app/build/outputs/apk/release/app-release.apk"
+    if [ -f "$APK_PATH" ]; then
+        cp "$APK_PATH" "../$BUILD_DIR/Muguet.apk"
+        echo "APK built: $BUILD_DIR/Muguet.apk"
+    else
+        echo "WARNING: APK not found at expected location"
+    fi
+    
+    cd ..
+else
+    echo "Android project not found at $ANDROID_PROJECT_DIR, skipping APK build"
+fi
