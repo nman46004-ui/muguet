@@ -27,7 +27,7 @@ fn default_host() -> cpal::Host {
 }
 
 #[cfg(not(target_os = "android"))]
-fn default_host() -> cpal::Host {
+fn default_host_dup() -> cpal::Host {
     cpal::default_host()
 }
 
@@ -178,11 +178,11 @@ pub fn stop() {
 }
 
 #[cfg(target_os = "android")]
-fn default_host() -> cpal::Host {
+fn default_host_dup() -> cpal::Host {
     cpal::host_from_id(cpal::HostId::Oboe).unwrap_or_else(|_| cpal::default_host())
 }
 
 #[cfg(not(target_os = "android"))]
-fn default_host() -> cpal::Host {
+fn default_host_dup() -> cpal::Host {
     cpal::default_host()
 }

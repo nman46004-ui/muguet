@@ -26,12 +26,12 @@ mod io;
 mod mp;
 mod pad;
 #[cfg(feature = "jit")]
-mod patch;
+// removed dup mod patch
 mod proto;
 mod server;
 mod touch_android;
 
-use crate::{gpu, input, Runtime, config};
+// removed dup import
 
 pub struct ImportSpec {
     pub module: String,
