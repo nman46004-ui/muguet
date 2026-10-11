@@ -7,12 +7,6 @@ set -euo pipefail
 GAME_WASM="${1:-}"
 if [[ -z "$GAME_WASM" || ! -f "$GAME_WASM" ]]; then
     echo "Usage: $0 /path/to/game.wasm"
-    echo ""
-    echo "Get game.wasm from playgta5.com:"
-    echo "  1. Open https://playgta5.com in Chrome/Firefox"
-    echo "  2. DevTools (F12) -> Network tab -> filter 'WASM'"
-    echo "  3. Reload page, find 'game.wasm' (largest file, ~50-100MB)"
-    echo "  4. Right-click -> Save as..."
     exit 1
 fi
 
@@ -28,14 +22,13 @@ ANDROID_PROJECT_DIR="android"
 # Check dependencies
 command -v cargo >/dev/null || { echo "cargo not found"; exit 1; }
 command -v rustup >/dev/null || { echo "rustup not found"; exit 1; }
-command -v wasmtime >/dev/null || { echo "wasmtime not found (cargo install wasmtime-cli)"; exit 1; }
+command -v wasmtime >/dev/null || { echo "wasmtime not found"; exit 1; }
 command -v java >/dev/null || { echo "java not found (need JDK 17+)"; exit 1; }
 
 # Setup NDK
 ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$HOME/Android/Sdk/ndk/$NDK_VERSION}"
 if [[ ! -d "$ANDROID_NDK_HOME" ]]; then
     echo "NDK not found at $ANDROID_NDK_HOME"
-    echo "Install via Android Studio or: sdkmanager \"ndk;$NDK_VERSION\""
     exit 1
 fi
 export ANDROID_NDK_HOME
@@ -65,7 +58,7 @@ else
     echo "  WARNING: mirror/playgta5.com/data not found. You'll need to copy manually."
 fi
 
-# Find the build directory with shaders (FIXED to prevent dirname crash)
+# Find the build directory with shaders
 BUILD_JSON=$(find mirror/playgta5.com -name "index.json" -path "*/shaders/*" 2>/dev/null | head -1 || true)
 if [[ -n "$BUILD_JSON" ]]; then
     BUILD_SOURCE=$(dirname "$(dirname "$BUILD_JSON")")
@@ -76,14 +69,11 @@ else
     echo "  WARNING: shader build directory not found. You'll need to copy manually."
 fi
 
-# AOT compile game.wasm for Android
+# AOT compile game.wasm for Android (NEW WASMTIME FLAGS)
 echo "AOT-compiling game.wasm for Android..."
 wasmtime compile \
     --target "$TARGET" \
-    --wasm-threads \
-    --wasm-memory64 \
-    --wasm-bulk-memory \
-    --wasm-multi-memory \
+    --wasm threads=y,memory64=y,bulk-memory=y,multi-memory=y \
     -o "$GAME_CWASM" \
     "$GAME_WASM"
 
@@ -140,14 +130,3 @@ cp "$GAME_CWASM" "$DEVICE_DIR/data/local/tmp/"
 cp -r "$GAME_DIR" "$DEVICE_DIR/data/local/tmp/"
 
 echo "Build complete!"
-echo ""
-echo "=== Option 1: Run via adb shell (no APK needed) ==="
-echo "  adb push $DEVICE_DIR/data/local/tmp /data/local/tmp/muguet"
-echo "  adb shell chmod +x /data/local/tmp/muguet/muguet-android"
-echo "  adb shell /data/local/tmp/muguet/muguet-android"
-echo ""
-if [[ -f "$BUILD_DIR/Muguet.apk" ]]; then
-    echo "=== Option 2: Install APK (with Launcher UI) ==="
-    echo "  adb install $BUILD_DIR/Muguet.apk"
-    echo "  Then launch 'Muguet' from app drawer"
-fi
