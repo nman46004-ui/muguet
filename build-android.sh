@@ -79,9 +79,12 @@ wasmtime compile \
 
 # Build the Android binary (Rust)
 echo "Building muguet-android (Rust)..."
+# Cargo expects exactly "Cargo.toml", so we copy our android config to that name
+cp Cargo.android.toml Cargo.toml
+
 cargo build --release \
     --target "$TARGET" \
-    --manifest-path Cargo.android.toml \
+    --manifest-path Cargo.toml \
     --features jit
 
 # Copy binary
