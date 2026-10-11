@@ -92,17 +92,28 @@ jobs:
             exit 1
           fi
 
-      # ഇതാണ് നമ്മൾ പുതുതായി ചേർത്ത സ്റ്റെപ്പ് (Wasmtime ഇൻസ്റ്റാൾ ചെയ്യാനുള്ളത്)
       - name: Install Wasmtime
         run: |
           curl https://wasmtime.dev/install.sh -sSf | bash
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
 
+      # വിൻഡോസ് ഫയൽ ഫോർമാറ്റ് പ്രശ്നം ഒഴിവാക്കാനുള്ള പുതിയ സ്റ്റെപ്പ്
+      - name: Fix line endings (Windows to Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dos2unix
+          dos2unix build-android.sh
+          dos2unix android/gradlew || true
+
       - name: Build Android (Rust + APK)
         env:
           GAME_WASM: ${{ env.GAME_WASM }}
+          # NDK പാത്ത് കൃത്യമായി നൽകുന്നു
+          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/${{ env.ANDROID_NDK_VERSION }}
         run: |
+          export PATH=$ANDROID_NDK_HOME:$PATH
           chmod +x build-android.sh
+          chmod +x android/gradlew || true
           ./build-android.sh "$GAME_WASM"
           echo "BUILD_DATE=$(date -u +"%Y-%m-%d %H:%M UTC")" >> $GITHUB_OUTPUT
           echo "VERSION=$(date -u +"%Y%m%d-%H%M")" >> $GITHUB_OUTPUT
