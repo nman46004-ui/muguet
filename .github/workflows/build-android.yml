@@ -1,0 +1,133 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      game_wasm_url:
+        description: 'URL to game.wasm (playgta5.com)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  ANDROID_NDK_VERSION: 26.1.10909125
+  RUST_TARGET: aarch64-linux-android
+  JAVA_VERSION: 17
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.RUST_TARGET }}
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Setup Android SDK/NDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 34
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+          cmdline-tools-version: latest
+
+      - name: Configure Cargo for Android
+        run: |
+          mkdir -p .cargo
+          cat > .cargo/config.toml <<EOF
+          [target.${{ env.RUST_TARGET }}]
+          linker = "${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ env.RUST_TARGET }}24-clang"
+          ar = "${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+          EOF
+
+      - name: Download game.wasm
+        if: ${{ inputs.game_wasm_url != '' }}
+        run: |
+          curl -L -o game.wasm "${{ inputs.game_wasm_url }}"
+          echo "GAME_WASM=$(pwd)/game.wasm" >> $GITHUB_ENV
+
+      - name: Use provided game.wasm
+        if: ${{ inputs.game_wasm_url == '' && github.event_name == 'push' }}
+        run: |
+          if [ -f game.wasm ]; then
+            echo "GAME_WASM=$(pwd)/game.wasm" >> $GITHUB_ENV
+          else
+            echo "::warning::No game.wasm found. Provide game_wasm_url input or commit game.wasm (not recommended)."
+            exit 1
+          fi
+
+      - name: Build Android (Rust + APK)
+        env:
+          GAME_WASM: ${{ env.GAME_WASM }}
+        run: |
+          chmod +x build-android.sh
+          ./build-android.sh "$GAME_WASM"
+          echo "BUILD_DATE=$(date -u +"%Y-%m-%d %H:%M UTC")" >> $GITHUB_OUTPUT
+          echo "VERSION=$(date -u +"%Y%m%d-%H%M")" >> $GITHUB_OUTPUT
+        id: build_info
+
+      - name: Verify APK
+        run: |
+          APK_PATH="build-android/Muguet.apk"
+          if [ -f "$APK_PATH" ]; then
+            echo "APK size: $(du -h $APK_PATH | cut -f1)"
+            echo "APK_PATH=$APK_PATH" >> $GITHUB_OUTPUT
+          else
+            echo "::error::APK not found at $APK_PATH"
+            exit 1
+          fi
+        id: verify
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Muguet.apk
+          path: ${{ steps.verify.outputs.APK_PATH }}
+          retention-days: 30
+
+      - name: Create Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.verify.outputs.APK_PATH }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
