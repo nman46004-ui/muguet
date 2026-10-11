@@ -97,7 +97,6 @@ jobs:
           curl https://wasmtime.dev/install.sh -sSf | bash
           echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
 
-      # വിൻഡോസ് ഫയൽ ഫോർമാറ്റ് പ്രശ്നം ഒഴിവാക്കാനുള്ള പുതിയ സ്റ്റെപ്പ്
       - name: Fix line endings (Windows to Linux)
         run: |
           sudo apt-get update
@@ -107,14 +106,24 @@ jobs:
 
       - name: Build Android (Rust + APK)
         env:
-          GAME_WASM: ${{ env.GAME_WASM }}
-          # NDK പാത്ത് കൃത്യമായി നൽകുന്നു
           ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/${{ env.ANDROID_NDK_VERSION }}
         run: |
           export PATH=$ANDROID_NDK_HOME:$PATH
+          
+          # സ്ക്രിപ്റ്റിന് ആവശ്യമായ ഡമ്മി ഫോൾഡർ ഘടന ഇവിടെ ഉണ്ടാക്കുന്നു
+          mkdir -p mirror/playgta5.com/b/8b0b5899ed/
+          mkdir -p mirror/playgta5.com/data/
+          
+          # game.wasm ഫയൽ ആ ഫോൾഡറിലേക്ക് മാറ്റുന്നു
+          if [ -f game.wasm ]; then
+            mv game.wasm mirror/playgta5.com/b/8b0b5899ed/game.wasm
+          fi
+          export GAME_WASM="$(pwd)/mirror/playgta5.com/b/8b0b5899ed/game.wasm"
+          
           chmod +x build-android.sh
           chmod +x android/gradlew || true
           ./build-android.sh "$GAME_WASM"
+          
           echo "BUILD_DATE=$(date -u +"%Y-%m-%d %H:%M UTC")" >> $GITHUB_OUTPUT
           echo "VERSION=$(date -u +"%Y%m%d-%H%M")" >> $GITHUB_OUTPUT
         id: build_info
