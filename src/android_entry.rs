@@ -583,7 +583,7 @@ fn android_main(app: AndroidApp) {
                 let mut desc = InstanceDescriptor::new_without_display_handle();
                 desc.backends = Backends::VULKAN;
                 let instance = wgpu::Instance::new(desc);
-                let surface = instance.create_surface(&ptr as *const _ as *const dyn HasRawWindowHandle).expect("create surface");
+                let surface = instance.create_surface(app.clone()).expect("create surface");
                 
                 let handoff = gpu::SurfaceHandoff {
                     instance,
@@ -601,8 +601,8 @@ fn android_main(app: AndroidApp) {
                 log::info!("MainEvent::WindowResized {}x{}", width, height);
                 unsafe {
                     if let Some(ptr) = SURFACE_PTR {
-                        (*ptr).width = width;
-                        (*ptr).height = height;
+                        (*ptr).width = width as u32;
+                        (*ptr).height = height as u32;
                     }
                 }
                 input::set_size(width as i32, height as i32);
@@ -678,7 +678,7 @@ fn android_main(app: AndroidApp) {
                     }
                     _ => {}
                 }
-                InputStatus::Unhandled
+                ()
             }
             MainEvent::Pause => {
                 log::info!("MainEvent::Pause");
@@ -719,11 +719,11 @@ fn init_touch_overlay(app: &AndroidApp) {
         let overlay = env.new_object(
             overlay_class,
             "(Landroid/content/Context;)V",
-            &[JValue::from(app.activity().as_obj())]
+            &[JValue::from(&unsafe { jni::objects::JObject::from_raw(app.activity_as_ptr() as _) })]
         ).unwrap();
         
         // Initialize with window
-        let window = app.activity().get_window().unwrap();
+        // removed
         let _ = env.call_method(
             &overlay,
             "initialize",
@@ -733,7 +733,7 @@ fn init_touch_overlay(app: &AndroidApp) {
         
         // Store global reference
         let global_ref = env.new_global_ref(&overlay).unwrap();
-        TOUCH_OVERLAY.set(global_ref).ok();
+        TOUCH_OVERLAY.set(unsafe { jni::objects::JObject::from_raw(global_ref.as_obj().as_raw()) }).ok();
         
         log::info!("Touch overlay initialized");
     }

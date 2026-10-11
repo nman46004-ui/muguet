@@ -9,7 +9,6 @@ name = "muguet-android"
 path = "src/android_entry.rs"
 
 [dependencies]
-# Original game dependencies EXACTLY as the developer wrote them
 wasmtime = { version = "49", default-features = false, features = ["runtime", "threads", "profiling", "anyhow"] }
 anyhow = "1"
 libc = "0.2"
@@ -23,8 +22,7 @@ wasmparser = { version = "0.258.3", optional = true }
 wasm-encoder = { version = "0.258.3", optional = true, features = ["wasmparser"] }
 bcdec_rs = "0.2.0"
 
-# Android specific dependencies (Strictly matched versions)
-android-activity = { version = "0.6", features = ["native-activity"] }
+android-activity = { version = "0.6", features = ["game-activity"] }
 raw-window-handle = "0.6"
 ndk = "0.9"
 ndk-sys = "0.6"
