@@ -21,7 +21,7 @@ ndk = "0.10"
 ndk-glue = "0.10"
 ndk-sys = "0.10"
 log = "0.4"
-android_logger = "0.18"
+android_logger = "0.15"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 wasmparser = { version = "0.258.3", optional = true }
 wasm-encoder = { version = "0.258.3", optional = true, features = ["wasmparser"] }
