@@ -24,7 +24,7 @@ wasm-encoder = { version = "0.258.3", optional = true, features = ["wasmparser"]
 bcdec_rs = "0.2.0"
 
 # Android specific dependencies (Strictly matched versions)
-android-activity = "0.6"
+android-activity = { version = "0.6", features = ["native-activity"] }
 raw-window-handle = "0.6"
 ndk = "0.9"
 ndk-sys = "0.6"
